@@ -2,5 +2,10 @@
 name = "tryiter"
 version = "0.1.0"
 edition = "2021"
+authors = ["Carl Sverre"]
+description = "Utility functions for Iterators of Results"
+repository = "https://github.com/carlsverre/tryiter"
+license = "MIT or Apache-2.0"
+keywords = ["iterator", "result", "try", "extension", "trait"]
 
 [dependencies]
