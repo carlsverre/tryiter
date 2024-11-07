@@ -49,7 +49,7 @@ pub trait TryIteratorExt: TryIterator {
     /// ```
     /// use tryiter::TryIteratorExt;
     ///
-    /// let mut iter = vec![Ok(5), Err(5)].into_iter().map_ok(|x| x * 2);
+    /// let mut iter = vec![Ok(5), Err(5)].into_iter().map_ok(|x| Ok(x * 2));
     ///
     /// assert_eq!(iter.next(), Some(Ok(10)));
     /// assert_eq!(iter.next(), Some(Err(5)));
@@ -57,9 +57,9 @@ pub trait TryIteratorExt: TryIterator {
     fn map_ok<T, F>(mut self, mut f: F) -> impl TryIterator<Ok = T, Err = Self::Err>
     where
         Self: Sized,
-        F: FnMut(Self::Ok) -> T,
+        F: FnMut(Self::Ok) -> Result<T, Self::Err>,
     {
-        iter::from_fn(move || self.next().map(|result| result.map(&mut f)))
+        iter::from_fn(move || self.next().map(|result| result.and_then(&mut f)))
     }
 
     /// Wraps the current iterator in a new iterator that maps the error value
@@ -81,32 +81,6 @@ pub trait TryIteratorExt: TryIterator {
         F: FnMut(Self::Err) -> E,
     {
         iter::from_fn(move || self.next().map(|result| result.map_err(&mut f)))
-    }
-
-    /// Wraps the current iterator in a new iterator that filters the success
-    /// values using the provided closure. Errors are passed through.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use tryiter::TryIteratorExt;
-    ///
-    /// let iter = vec![Ok(1), Ok(2), Ok(3), Err("error")].into_iter();
-    /// let mut evens = iter.try_filter(|x| x % 2 == 0);
-    ///
-    /// assert_eq!(evens.next(), Some(Ok(2)));
-    /// assert_eq!(evens.next(), Some(Err("error")));
-    /// ```
-    fn try_filter<P>(self, mut predicate: P) -> impl TryIterator<Ok = Self::Ok, Err = Self::Err>
-    where
-        Self: Sized,
-        P: FnMut(&Self::Ok) -> bool,
-    {
-        self.filter_map(move |result| match result {
-            Ok(ok) if predicate(&ok) => Some(Ok(ok)),
-            Ok(_) => None,
-            Err(err) => Some(Err(err)),
-        })
     }
 
     /// Wraps the current iterator in a new iterator that filters and maps the
@@ -135,5 +109,127 @@ pub trait TryIteratorExt: TryIterator {
             Ok(ok) => f(ok).transpose(),
             Err(err) => Some(Err(err)),
         })
+    }
+
+    /// Wraps the current iterator in a new iterator that filters the success
+    /// values using the provided closure. Errors are passed through.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let iter = vec![Ok(1), Ok(2), Ok(3), Err("error")].into_iter();
+    /// let mut evens = iter.try_filter(|x| Ok(x % 2 == 0));
+    ///
+    /// assert_eq!(evens.next(), Some(Ok(2)));
+    /// assert_eq!(evens.next(), Some(Err("error")));
+    /// ```
+    fn try_filter<P>(self, mut predicate: P) -> impl TryIterator<Ok = Self::Ok, Err = Self::Err>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Ok) -> Result<bool, Self::Err>,
+    {
+        self.try_filter_map(move |value| {
+            if predicate(&value)? {
+                Ok(Some(value))
+            } else {
+                Ok(None)
+            }
+        })
+    }
+
+    /// Returns `true` if the provided closure returns `true` for all success
+    /// values in the iterator. Errors are passed through.
+    ///
+    /// This method is short-circuiting; it will stop processing as soon as the
+    /// closure returns `false`. This means that it may not visit all elements
+    /// in the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let mut iter = vec![Ok::<i32, i32>(1), Ok(2), Ok(3)].into_iter();
+    /// assert!(iter.try_all(|x| Ok(x < 4)).unwrap());
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Err("error"), Ok(3)].into_iter();
+    /// assert_eq!(iter.try_all(|x| Ok(x < 4)), Err("error"));
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Err("error"), Ok(3)].into_iter();
+    /// assert_eq!(iter.try_all(|x| Ok(x > 4)), Ok(false));
+    /// ```
+    ///
+    /// Stopping at the first `false`:
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Ok(3), Err("error")].into_iter();
+    /// assert!(!iter.try_all(|x| Ok(x != 2)).unwrap());
+    ///
+    /// // The iterator stopped before consuming all elements
+    /// assert_eq!(iter.next(), Some(Ok(3)));
+    /// assert_eq!(iter.next(), Some(Err("error")));
+    /// ```
+    fn try_all<F>(&mut self, mut f: F) -> Result<bool, Self::Err>
+    where
+        Self: Sized,
+        F: FnMut(Self::Ok) -> Result<bool, Self::Err>,
+    {
+        for result in self {
+            if !result.and_then(&mut f)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// Returns `true` if the provided closure returns `true` for any success
+    /// values in the iterator. Errors are passed through.
+    ///
+    /// This method is short-circuiting; it will stop processing as soon as the
+    /// closure returns `true`. This means that it may not visit all elements
+    /// in the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Ok(3), Err("error")].into_iter();
+    /// assert!(iter.try_any(|x| Ok(x == 3)).unwrap());
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Err("error"), Ok(3)].into_iter();
+    /// assert_eq!(iter.try_any(|x| Ok(x == 3)), Err("error"));
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Err("error"), Ok(3)].into_iter();
+    /// assert_eq!(iter.try_any(|x| Ok(x != 1)), Ok(true));
+    /// ```
+    ///
+    /// Stopping at the first `true`:
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let mut iter = vec![Ok(1), Ok(2), Ok(3), Err("error")].into_iter();
+    /// assert!(iter.try_any(|x| Ok(x == 2)).unwrap());
+    ///
+    /// // The iterator stopped before consuming all elements
+    /// assert_eq!(iter.next(), Some(Ok(3)));
+    /// assert_eq!(iter.next(), Some(Err("error")));
+    /// ```
+    fn try_any<F>(&mut self, mut f: F) -> Result<bool, Self::Err>
+    where
+        Self: Sized,
+        F: FnMut(Self::Ok) -> Result<bool, Self::Err>,
+    {
+        for result in self {
+            if result.and_then(&mut f)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
