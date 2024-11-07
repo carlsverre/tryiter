@@ -10,9 +10,12 @@ This crate is currently only accepting new functionality added to the `TryIterat
 - futures::stream::[TryStreamExt]
 - itertools::[Itertools]
 
+A good list of missing adapters can be found in Yoshua Wuyts post on [Fallible Iterator Adapters].
+
 [Iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 [TryStreamExt]: https://docs.rs/futures/latest/futures/stream/trait.TryStreamExt.html
 [Itertools]: https://docs.rs/itertools/latest/itertools/trait.Itertools.html
+[Fallible Iterator Adapters]:https://blog.yoshuawuyts.com/fallible-iterator-adapters/
 
 ## Testing
 
