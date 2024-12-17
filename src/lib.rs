@@ -1,5 +1,9 @@
 mod ext;
+mod try_peekable;
+
 pub use ext::TryIteratorExt;
+pub use try_peekable::TryPeekable;
+
 use private::Sealed;
 
 mod private {

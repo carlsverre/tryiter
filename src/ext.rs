@@ -1,6 +1,6 @@
 use std::iter;
 
-use crate::TryIterator;
+use crate::{TryIterator, TryPeekable};
 
 pub trait TryIteratorExt: TryIterator {
     /// Attempt to retrieve the next value from the iterator, lifting the error
@@ -231,5 +231,41 @@ pub trait TryIteratorExt: TryIterator {
             }
         }
         Ok(false)
+    }
+
+    /// Wraps the current iterator in a new iterator that allows peeking at the
+    /// next element without consuming it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let mut iter = vec![Ok(1), Err("error"), Ok(2)].into_iter();
+    /// let mut peek = iter.try_peekable();
+    ///
+    /// assert_eq!(peek.try_peek(), Ok(Some(&1)));
+    ///
+    /// // mutable references can also be acquired
+    /// assert_eq!(peek.try_peek_mut(), Ok(Some(&mut 1)));
+    ///
+    /// assert_eq!(peek.try_next(), Ok(Some(1)));
+    /// assert_eq!(peek.try_peek(), Err("error"));
+    ///
+    /// // Note that errors are not stored, subsequent calls to try_peek will
+    /// // consume the next value from the iterator
+    /// assert_eq!(peek.try_peek(), Ok(Some(&2)));
+    /// assert_eq!(peek.try_peek(), Ok(Some(&2)));
+    /// assert_eq!(peek.try_next(), Ok(Some(2)));
+    ///
+    /// // The iterator is now empty
+    /// assert_eq!(peek.try_next(), Ok(None));
+    ///
+    /// ```
+    fn try_peekable(self) -> TryPeekable<Self>
+    where
+        Self: Sized,
+    {
+        TryPeekable::new(self)
     }
 }
