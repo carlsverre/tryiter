@@ -268,4 +268,45 @@ pub trait TryIteratorExt: TryIterator {
     {
         TryPeekable::new(self)
     }
+
+    /// This is basically the fallible version of [`std::iter::Iterator::unzip`]
+    ///
+    /// Converts an iterator of [`Result`] of pairs into a [`Result`] of pair of containers.
+    ///
+    /// `try_unzip()` consumes the iterator, 
+    /// - either until it encounters an error, in which case it would stop and return the error (short-circuiting).
+    /// - or entirely if no error is encountered, producing a [`Result::Ok`] of two collections: one collection from the left elements of the pairs, and one from the right elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let successful: Vec<Result<_, String>> = vec![Ok((1, 2)), Ok((3, 4)), Ok((5, 6))];
+    /// let unzipped = successful.into_iter().try_unzip();
+    /// let expected_left = vec![1, 3, 5];
+    /// let expected_right = vec![2, 4, 6];
+    /// assert_eq!(unzipped, Ok((expected_left,expected_right)));
+    ///
+    /// let errorneous = vec![Ok((1, 2)), Err("No number found"), Ok((5, 6))];
+    /// let unzipped: Result<(Vec<_>, Vec<_>),_> = errorneous.into_iter().try_unzip();
+    /// assert_eq!(unzipped, Err("No number found"));
+    ///
+    ///
+    fn try_unzip<A, B, FromA, FromB>(&mut self) -> Result<(FromA, FromB), Self::Err>
+    where
+        Self: Sized + TryIterator<Ok = (A, B)>,
+        FromA: Default + Extend<A>,
+        FromB: Default + Extend<B>,
+    {
+        self.try_fold(
+            (FromA::default(), FromB::default()),
+            |(mut left_list, mut right_list), couple| {
+                let (l, r) = couple?;
+                left_list.extend(std::iter::once(l));
+                right_list.extend(std::iter::once(r));
+                Ok((left_list, right_list))
+            },
+        )
+    }
 }
