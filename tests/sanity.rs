@@ -45,6 +45,14 @@ fn test_sanity() {
         println!("{}", val);
     }
 
+    // Unzip an iterator of [`Result`] of [`(_,_)`]
+    let couples = vec![Ok((1, 2)), Ok((3, 4)), Ok((5, 6)), Err(MyErr), Ok((9, 10))];
+    let (left_3, _right_3): (Vec<_>, Vec<_>) =
+        couples.clone().into_iter().take(3).try_unzip().unwrap();
+    assert_eq!(left_3, vec![1,3,5]);
+    let erroneous: Result<(Vec<_>, Vec<_>), _> = couples.into_iter().try_unzip();
+    assert_eq!(erroneous, Err(MyErr));
+
     // raise an error during processing
     vals.iter()
         .cloned()
