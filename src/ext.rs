@@ -309,4 +309,46 @@ pub trait TryIteratorExt: TryIterator {
             },
         )
     }
+
+    /// Fallible version of [`Iterator::max_by_key`]
+    /// If every element is a [`Result::Ok`], it has the same behavior.
+    ///
+    /// - Returns the element that gives the maximum value from the specified function.
+    /// - If several elements are equally maximum, the last element is returned.
+    /// - If the iterator is empty, [`Option::None`] is returned.
+    ///
+    /// Otherwise, returns the first error encountered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// //       0, 1, 2, 3, 4, 5, 6
+    /// let v = [5, 3, 9, 7, 2, 9, 8];
+    /// let mut v: Vec<_> = v.into_iter().enumerate().map(Result::Ok).collect();
+    /// let max = v.clone().into_iter().try_max_by_key(|(_i, v)| *v);
+    /// assert_eq!(max, Ok(Some((5, 9))));
+    ///                                                                          
+    /// v[3] = Err(7);
+    /// v[5] = Err(9);
+    /// let max = v.into_iter().try_max_by_key(|(_i, v)| *v);
+    /// assert_eq!(max, Err(7));
+    /// ```
+    fn try_max_by_key<B, F>(mut self, mut f: F) -> Result<Option<Self::Ok>, Self::Err>
+    where
+        Self: Sized + TryIterator,
+        B: Ord,
+        F: FnMut(&Self::Ok) -> B,
+    {
+        match self.next() {
+            None => Ok(None),
+            Some(Err(e)) => Err(e),
+            Some(Ok(v)) => Some(self.try_fold(v, |acc, x| match x {
+                Ok(x) => Ok(std::cmp::max_by_key(acc, x, &mut f)),
+                Err(e) => Err(e),
+            }))
+            .transpose(),
+        }
+    }
 }
