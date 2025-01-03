@@ -310,6 +310,38 @@ pub trait TryIteratorExt: TryIterator {
         )
     }
 
+    /// Fallible version of [`Iterator::max`]
+    /// If every element is a [`Result::Ok`], it has the same behavior.
+    ///
+    /// - It returns the maximum element of the iterator.
+    /// - If several elements are equally maximum, the last element is returned.
+    /// - If the iterator is empty, [`Option::None`] is returned.
+    ///
+    /// Otherwise, returns the first error encountered.
+    ///
+    /// Note: This differs in calling [`Iterator::max`] which would not stop at the first error but would return the maximal [`Result::Err`] if several errors are encountered.
+    ///
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let mut v = [Ok(5), Ok(3), Ok(9), Ok(7), Ok(2)];
+    /// assert_eq!(v.iter().map(Result::as_ref).try_max(), Ok(Some(&9)));
+    ///                                                                   
+    /// v[1] = Err(3);
+    /// v[2] = Err(9);
+    /// assert_eq!(v.iter().map(Result::as_ref).try_max(), Err(&3));
+    /// ```
+    fn try_max(self) -> Result<Option<Self::Ok>, Self::Err>
+    where
+        Self: Sized + TryIterator,
+        Self::Ok: Ord,
+    {
+        self.try_max_by(Self::Ok::cmp)
+    }
+
     /// Fallible version of [`Iterator::max_by`]
     /// If every element is a [`Result::Ok`], it has the same behavior.
     ///
