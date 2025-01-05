@@ -327,12 +327,13 @@ pub trait TryIteratorExt: TryIterator {
     /// ```
     /// use tryiter::TryIteratorExt;
     ///
-    /// let mut v = [Ok(5), Ok(3), Ok(9), Ok(7), Ok(2)];
-    /// assert_eq!(v.iter().map(Result::as_ref).try_max(), Ok(Some(&9)));
-    ///                                                                   
-    /// v[1] = Err(3);
-    /// v[2] = Err(9);
-    /// assert_eq!(v.iter().map(Result::as_ref).try_max(), Err(&3));
+    /// let v = [Ok(5), Ok(3), Ok(9), Ok(7), Ok(2)];
+    /// let max: Result<_, i32> = v.into_iter().try_max();
+    /// assert_eq!(max, Ok(Some(9)));
+    ///                                                    
+    /// let v = [Ok(5), Err(3), Err(9), Ok(7), Ok(2)];
+    /// let max = v.into_iter().try_max();
+    /// assert_eq!(max, Err(3));
     /// ```
     fn try_max(self) -> Result<Option<Self::Ok>, Self::Err>
     where
@@ -356,15 +357,12 @@ pub trait TryIteratorExt: TryIterator {
     /// ```
     /// use tryiter::TryIteratorExt;
     ///
-    /// //       0, 1, 2, 3, 4, 5, 6
-    /// let v = [5, 3, 9, 7, 2, 9, 8].into_iter();
-    /// let mut v: Vec<_> = v.enumerate().map(Result::Ok).collect();
-    /// let max = v.clone().into_iter().try_max_by(|x, y| x.1.cmp(&y.1));
-    /// assert_eq!(max, Ok(Some((5, 9))));
-    ///                                                                   
-    /// v[3] = Err(7);
-    /// v[5] = Err(9);
-    /// let max = v.into_iter().try_max_by(|x, y| x.1.cmp(&y.1));
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Ok((7, 0)), Ok((9, -1)), Ok((8, 0))];
+    /// let max: Result<_, i32> = v.into_iter().try_max_by(|x, y| x.0.cmp(&y.0));
+    /// assert_eq!(max, Ok(Some((9, -1))));
+    ///                                                                           
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Err(7), Err(9), Ok((8, 0))];
+    /// let max = v.into_iter().try_max_by(|x, y| x.0.cmp(&y.0));
     /// assert_eq!(max, Err(7));
     /// ```
     fn try_max_by<F>(mut self, mut compare: F) -> Result<Option<Self::Ok>, Self::Err>
@@ -397,15 +395,12 @@ pub trait TryIteratorExt: TryIterator {
     /// ```
     /// use tryiter::TryIteratorExt;
     ///
-    /// //       0, 1, 2, 3, 4, 5, 6
-    /// let v = [5, 3, 9, 7, 2, 9, 8];
-    /// let mut v: Vec<_> = v.into_iter().enumerate().map(Result::Ok).collect();
-    /// let max = v.clone().into_iter().try_max_by_key(|(_i, v)| *v);
-    /// assert_eq!(max, Ok(Some((5, 9))));
-    ///                                                                          
-    /// v[3] = Err(7);
-    /// v[5] = Err(9);
-    /// let max = v.into_iter().try_max_by_key(|(_i, v)| *v);
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Ok((7, 0)), Ok((9, -1)), Ok((8, 0))];
+    /// let max: Result<_, i32> = v.into_iter().try_max_by_key(|(v, _occ)| *v);
+    /// assert_eq!(max, Ok(Some((9, -1))));
+    ///                                                                         
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Err(7), Err(9), Ok((8, 0))];
+    /// let max = v.into_iter().try_max_by_key(|(v, _occ)| *v);
     /// assert_eq!(max, Err(7));
     /// ```
     fn try_max_by_key<B, F>(mut self, mut f: F) -> Result<Option<Self::Ok>, Self::Err>
