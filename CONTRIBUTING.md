@@ -21,6 +21,8 @@ A good list of missing adapters can be found in Yoshua Wuyts post on [Fallible I
 
 Functions should be sufficiently simple that they can be verified via inspection along with a simple doctest which also serves as documentation.
 
+If the functionality is complex consider adding additional secondary tests.
+
 ## Submitting a pull request
 
 Before submitting a PR please run `cargo test` and `cargo check` fixing any errors that come up. Thank you for your contributions!

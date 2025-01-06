@@ -273,9 +273,12 @@ pub trait TryIteratorExt: TryIterator {
     ///
     /// Converts an iterator of [`Result`] of pairs into a [`Result`] of pair of containers.
     ///
-    /// `try_unzip()` consumes the iterator, 
-    /// - either until it encounters an error, in which case it would stop and return the error (short-circuiting).
-    /// - or entirely if no error is encountered, producing a [`Result::Ok`] of two collections: one collection from the left elements of the pairs, and one from the right elements.
+    /// `try_unzip()` consumes the iterator,
+    /// - either until it encounters an error, in which case it would stop and
+    ///   return the error (short-circuiting).
+    /// - or entirely if no error is encountered, producing a [`Result::Ok`] of
+    ///   two collections: one collection from the left elements of the pairs, and
+    ///   one from the right elements.
     ///
     /// # Examples
     ///
@@ -319,8 +322,9 @@ pub trait TryIteratorExt: TryIterator {
     ///
     /// Otherwise, returns the first error encountered.
     ///
-    /// Note: This differs in calling [`Iterator::max`] which would not stop at the first error but would return the maximal [`Result::Err`] if several errors are encountered.
-    ///
+    /// Note: This differs in calling [`Iterator::max`] which would not stop at
+    /// the first error but would return the maximal [`Result::Err`] if several
+    /// errors are encountered.
     ///
     /// # Examples
     ///
@@ -346,7 +350,8 @@ pub trait TryIteratorExt: TryIterator {
     /// Fallible version of [`Iterator::max_by`]
     /// If every element is a [`Result::Ok`], it has the same behavior.
     ///
-    /// - Returns the element that gives the maximum value with respect to the specified comparison function.
+    /// - Returns the element that gives the maximum value with respect to the
+    ///   specified comparison function.
     /// - If several elements are equally maximum, the last element is returned.
     /// - If the iterator is empty, [`Option::None`] is returned.
     ///
@@ -414,6 +419,118 @@ pub trait TryIteratorExt: TryIterator {
             Some(Err(e)) => Err(e),
             Some(Ok(v)) => Some(self.try_fold(v, |acc, x| match x {
                 Ok(x) => Ok(std::cmp::max_by_key(acc, x, &mut f)),
+                Err(e) => Err(e),
+            }))
+            .transpose(),
+        }
+    }
+
+    /// Fallible version of [`Iterator::min`]
+    /// If every element is a [`Result::Ok`], it has the same behavior.
+    ///
+    /// - It returns the minimum element of the iterator.
+    /// - If several elements are equally minimum, the last element is returned.
+    /// - If the iterator is empty, [`Option::None`] is returned.
+    ///
+    /// Otherwise, returns the first error encountered.
+    ///
+    /// Note: This differs in calling [`Iterator::min`] which would not stop at
+    /// the first error but would return the minimal [`Result::Err`] if several
+    /// errors are encountered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let v = [Ok(5), Ok(3), Ok(9), Ok(7), Ok(2)];
+    /// let min: Result<_, i32> = v.into_iter().try_min();
+    /// assert_eq!(min, Ok(Some(2)));
+    ///
+    /// let v = [Ok(5), Err(3), Err(9), Ok(7), Ok(2)];
+    /// let min = v.into_iter().try_min();
+    /// assert_eq!(min, Err(3));
+    /// ```
+    fn try_min(self) -> Result<Option<Self::Ok>, Self::Err>
+    where
+        Self: Sized + TryIterator,
+        Self::Ok: Ord,
+    {
+        self.try_min_by(Self::Ok::cmp)
+    }
+
+    /// Fallible version of [`Iterator::min_by`]
+    /// If every element is a [`Result::Ok`], it has the same behavior.
+    ///
+    /// - Returns the element that gives the minimum value with respect to the
+    ///   specified comparison function.
+    /// - If several elements are equally minimum, the last element is returned.
+    /// - If the iterator is empty, [`Option::None`] is returned.
+    ///
+    /// Otherwise, returns the first error encountered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Ok((7, 0)), Ok((9, -1)), Ok((8, 0))];
+    /// let min: Result<_, i32> = v.into_iter().try_min_by(|x, y| x.0.cmp(&y.0));
+    /// assert_eq!(min, Ok(Some((5, 0))));
+    ///
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Err(7), Err(9), Ok((8, 0))];
+    /// let min = v.into_iter().try_min_by(|x, y| x.0.cmp(&y.0));
+    /// assert_eq!(min, Err(7));
+    /// ```
+    fn try_min_by<F>(mut self, mut compare: F) -> Result<Option<Self::Ok>, Self::Err>
+    where
+        Self: Sized + TryIterator,
+        F: FnMut(&Self::Ok, &Self::Ok) -> std::cmp::Ordering,
+    {
+        match self.next() {
+            None => Ok(None),
+            Some(Err(e)) => Err(e),
+            Some(Ok(v)) => Some(self.try_fold(v, |acc, x| match x {
+                Ok(x) => Ok(std::cmp::min_by(acc, x, &mut compare)),
+                Err(e) => Err(e),
+            }))
+            .transpose(),
+        }
+    }
+
+    /// Fallible version of [`Iterator::min_by_key`]
+    /// If every element is a [`Result::Ok`], it has the same behavior.
+    ///
+    /// - Returns the element that gives the minimum value from the specified function.
+    /// - If several elements are equally minimum, the last element is returned.
+    /// - If the iterator is empty, [`Option::None`] is returned.
+    ///
+    /// Otherwise, returns the first error encountered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Ok((7, 0)), Ok((9, -1)), Ok((8, 0))];
+    /// let min: Result<_, i32> = v.into_iter().try_min_by_key(|(v, _occ)| *v);
+    /// assert_eq!(min, Ok(Some((5, 0))));
+    ///
+    /// let v = [Ok((5, 0)), Ok((9, 0)), Err(7), Err(9), Ok((8, 0))];
+    /// let min = v.into_iter().try_min_by_key(|(v, _occ)| *v);
+    /// assert_eq!(min, Err(7));
+    /// ```
+    fn try_min_by_key<B, F>(mut self, mut f: F) -> Result<Option<Self::Ok>, Self::Err>
+    where
+        Self: Sized + TryIterator,
+        B: Ord,
+        F: FnMut(&Self::Ok) -> B,
+    {
+        match self.next() {
+            None => Ok(None),
+            Some(Err(e)) => Err(e),
+            Some(Ok(v)) => Some(self.try_fold(v, |acc, x| match x {
+                Ok(x) => Ok(std::cmp::min_by_key(acc, x, &mut f)),
                 Err(e) => Err(e),
             }))
             .transpose(),
