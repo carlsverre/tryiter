@@ -536,4 +536,64 @@ pub trait TryIteratorExt: TryIterator {
             .transpose(),
         }
     }
+    /// Do something with the success value of the TryIterator, afterwards passing it on.
+    ///
+    /// This is similar to the [`Iterator::inspect`] method where it allows easily inspecting the success value as it passes through the iterator, for example to debug what’s going on.
+    ///
+    /// # Examples
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// let v = [Ok(5), Err(3), Err(9), Ok(7), Ok(2)];
+    /// let mut evens = vec![];
+    /// let _ = v
+    ///     .into_iter()
+    ///     .map_ok(|x| Ok(x * 2))
+    ///     .inspect_ok(|x| evens.push(*x))
+    ///     .for_each(|_| {});
+    /// assert_eq!(vec![10, 14, 4], evens);
+    /// ```
+    fn inspect_ok<F>(self, mut f: F) -> impl TryIterator<Ok = Self::Ok, Err = Self::Err>
+    where
+        Self: Sized + TryIterator,
+        F: FnMut(&Self::Ok),
+    {
+        self.inspect(move |item| {
+            if let Ok(item) = item {
+                f(item)
+            }
+        })
+    }
+
+    /// Do something with the error value of the TryIterator, afterwards passing it on.
+    ///
+    /// This is similar to the [`Iterator::inspect`] method where it allows easily inspecting the error value as it passes through the iterator, for example to debug what’s going on.
+    ///
+    /// # Examples
+    /// ```
+    /// use tryiter::TryIteratorExt;
+    ///
+    /// #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    /// struct Error(usize);
+    ///                                                
+    /// let v = [Ok(5), Err(3), Err(9), Ok(7), Ok(2)];
+    /// let mut errs = vec![];
+    /// let _ = v
+    ///     .into_iter()
+    ///     .map_err(|err| Error(err))
+    ///     .inspect_err(|err| errs.push(*err))
+    ///     .for_each(|_| {});
+    /// assert_eq!(vec![Error(3), Error(9)], errs);
+    ///```
+    fn inspect_err<F>(self, mut f: F) -> impl TryIterator<Ok = Self::Ok, Err = Self::Err>
+    where
+        Self: Sized + TryIterator,
+        F: FnMut(&Self::Err),
+    {
+        self.inspect(move |item| {
+            if let Err(err) = item {
+                f(err)
+            }
+        })
+    }
 }
