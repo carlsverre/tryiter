@@ -1,14 +1,10 @@
 <h1 align="center">tryiter</h1>
 <p align="center">
-  <a href="https://docs.rs/tryiter">
-    <img alt="docs.rs" src="https://img.shields.io/docsrs/tryiter">
-  </a>
-  <a href="https://crates.io/crates/tryiter">
-    <img alt="crates.io" src="https://img.shields.io/crates/v/tryiter.svg">
-  </a>
-  <a href="https://github.com/carlsverre/tryiter/actions">
-    <img alt="Build Status" src="https://github.com/carlsverre/tryiter/actions/workflows/rust.yml/badge.svg">
-  </a>
+  <a href="https://docs.rs/tryiter"><img alt="docs.rs" src="https://img.shields.io/docsrs/tryiter"></a>
+  &nbsp;
+  <a href="https://crates.io/crates/tryiter"><img alt="crates.io" src="https://img.shields.io/crates/v/tryiter.svg"></a>
+  &nbsp;
+  <a href="https://github.com/carlsverre/tryiter/actions"><img alt="Build Status" src="https://github.com/carlsverre/tryiter/actions/workflows/rust.yml/badge.svg"></a>
 </p>
 
 
